@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Raqamlar — PDP Parking{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🚗 Moshina raqamlari</h1>
+        <div class="subtitle">Ruxsat etilgan / bloklangan raqamlar — kameralar bilan avtomatik sync</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>➕ Yangi raqam qo‘shish</h3>
+    <form onsubmit="addPlate(event)">
+        <div class="form-row">
+            <div><label>Raqam</label><input id="p_number" placeholder="01A123BC" required></div>
+            <div><label>Egasi (ism)</label><input id="p_owner" placeholder="Ism Familiya"></div>
+            <div><label>Ruxsat</label>
+                <select id="p_allowed">
+                    <option value="true">✓ Ha, ruxsat</option>
+                    <option value="false">✗ Bloklangan</option>
+                </select>
+            </div>
+            <div><label>Izoh</label><input id="p_note"></div>
+        </div>
+        <button class="btn" type="submit">Qo‘shish</button>
+        <span id="add-status" class="muted" style="margin-left:12px;"></span>
+    </form>
+</div>
+
+<div class="card">
+    <h3>📥 Excel orqali ommaviy yuklash</h3>
+    <p class="muted" style="margin-top:0;">
+        Avval <b>shablonni yuklab oling</b>, raqamlarni shablon bo‘yicha to‘ldiring va yuklang.
+        Yuklash paytida har bir raqam <u>DB ga ham, ikkala kameraga ham</u> yoziladi.
+    </p>
+    <div class="flex">
+        <a class="btn ghost" href="/api/plates/template.xlsx">⬇ Shablonni yuklab olish</a>
+        <form id="import-form" class="inline" style="display:flex; gap:10px; align-items:center;">
+            <input type="file" id="import-file" accept=".xlsx,.xlsm" required style="max-width:340px;">
+            <button class="btn ok" type="submit">📤 Yuklash</button>
+        </form>
+        <a class="btn ghost" href="/api/plates/export.xlsx">⬇ Joriy ro‘yxatni Excel</a>
+    </div>
+    <div id="import-result" class="muted" style="margin-top:10px;"></div>
+</div>
+
+<div class="card">
+    <div class="flex-between">
+        <h3 style="margin:0;">📋 Ro‘yxat</h3>
+        <button class="btn ghost" onclick="syncAll()">🔄 Hammasini kameralarga sync</button>
+    </div>
+    <div id="sync-result" class="muted" style="margin-top:8px;"></div>
+</div>
+
+<div class="card">
+    <table>
+        <thead><tr><th>#</th><th>Raqam</th><th>Egasi</th><th>Holat</th><th>Izoh</th><th>Qo‘shilgan</th><th style="text-align:right;">Amallar</th></tr></thead>
+        <tbody>
+        {% for p in plates %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td><b style="font-family:monospace; letter-spacing:0.5px;">{{ p.plate_number }}</b></td>
+                <td>{{ p.owner_name or '—' }}</td>
+                <td>
+                    {% if p.is_allowed %}<span class="badge ok">✓ Ruxsat</span>{% else %}<span class="badge bad">✗ Bloklangan</span>{% endif %}
+                </td>
+                <td class="muted">{{ p.note or '' }}</td>
+                <td class="muted">{{ p.created_at | localtime('%Y-%m-%d') }}</td>
+                <td style="text-align:right;">
+                    <button class="btn ghost sm" onclick="toggleAllowed({{ p.id }}, {{ 'false' if p.is_allowed else 'true' }})">
+                        {% if p.is_allowed %}Bloklash{% else %}Ruxsat{% endif %}
+                    </button>
+                    <button class="btn danger sm" onclick="delPlate({{ p.id }})">O‘chirish</button>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="7" class="muted" style="text-align:center; padding:30px;">Raqamlar yo‘q.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function addPlate(ev) {
+    ev.preventDefault();
+    const status = document.getElementById('add-status');
+    status.textContent = 'Saqlanmoqda...';
+    try {
+        await api('POST', '/api/plates', {
+            plate_number: document.getElementById('p_number').value,
+            owner_name: document.getElementById('p_owner').value || null,
+            is_allowed: document.getElementById('p_allowed').value === 'true',
+            note: document.getElementById('p_note').value || null,
+        });
+        toast('Qo‘shildi va kameralarga yuborildi');
+        reload();
+    } catch (e) { status.textContent = ''; toast(e.message, false); }
+}
+async function delPlate(id) {
+    if (!confirm('O‘chirishni tasdiqlaysizmi?')) return;
+    try { await api('DELETE', '/api/plates/' + id); toast('O‘chirildi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+async function toggleAllowed(id, v) {
+    try { await api('PUT', '/api/plates/' + id, { is_allowed: v }); toast('Yangilandi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+async function syncAll() {
+    const el = document.getElementById('sync-result');
+    el.textContent = 'Yuborilmoqda...';
+    try {
+        const res = await api('POST', '/api/plates/sync-all');
+        const ok = (res.results || []).filter(r => r.ok).length;
+        const tot = (res.results || []).length;
+        el.textContent = `${res.total} raqam, ${ok}/${tot} kameraga muvaffaqiyatli yuborildi.`;
+        toast(`${res.total} raqam sync qilindi (${ok}/${tot})`);
+    } catch (e) { el.textContent = 'Xato: ' + e.message; toast(e.message, false); }
+}
+
+document.getElementById('import-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const fileInput = document.getElementById('import-file');
+    const result = document.getElementById('import-result');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        toast('Faylni tanlang', false);
+        return;
+    }
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    result.textContent = 'Yuklanmoqda...';
+    try {
+        const resp = await fetch('/api/plates/import', { method: 'POST', body: fd });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.detail || resp.statusText);
+        const camOk = (data.camera_push || []).filter(c => c.ok).length;
+        const camTot = (data.camera_push || []).length;
+        result.innerHTML =
+            `✅ Qo‘shildi: <b>${data.created}</b>, yangilandi: <b>${data.updated}</b>, ` +
+            `o‘tkazib yuborilgan: <b>${(data.skipped || []).length}</b>. ` +
+            `Kameralar: <b>${camOk}/${camTot}</b>.`;
+        toast('Excel yuklandi va kameralarga sync qilindi');
+        setTimeout(reload, 1200);
+    } catch (e) { result.textContent = 'Xato: ' + e.message; toast(e.message, false); }
+});
+</script>
+{% endblock %}

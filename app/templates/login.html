@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Kirish — PDP Parking{% endblock %}
+{% block login %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-logo">
+            <img src="/static/img/pdp-logo.png" alt="PDP University">
+            <div class="login-title">PDP University</div>
+            <div class="login-sub">Parking Management System</div>
+        </div>
+        {% if error %}<div class="login-error">⚠ {{ error }}</div>{% endif %}
+        <form method="post" action="/login">
+            <div style="margin-bottom: 14px;">
+                <label>Login</label>
+                <input name="username" required autocomplete="username" placeholder="admin">
+            </div>
+            <div style="margin-bottom: 18px;">
+                <label>Parol</label>
+                <input type="password" name="password" required autocomplete="current-password" placeholder="•••••••">
+            </div>
+            <button class="btn" type="submit" style="width:100%; justify-content:center;">
+                🔐 Admin panelga kirish
+            </button>
+        </form>
+        <div style="text-align:center; margin-top:20px; color:var(--pdp-muted); font-size:12px;">
+            © PDP University — Parking System
+        </div>
+    </div>
+</div>
+{% endblock %}

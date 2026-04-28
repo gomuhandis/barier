@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(.venv/bin/python -c \"import jose; print\\(jose.__version__\\)\")",
+      "Bash(.venv/bin/python -c \"import jwt; print\\(jwt.__version__\\)\")",
+      "Bash(.venv/bin/python *)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/uvicorn src.main:app --host 127.0.0.1 --port 8765 --no-access-log)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(curl -i -X POST http://127.0.0.1:8765/api/barrier/command -H 'accept: application/json' -H 'Content-Type: application/json' -d '{\"role\":\"entry\",\"mode\":\"open\"}')",
+      "Bash(pkill -f \"uvicorn src.main:app --host 127.0.0.1 --port 8765\")"
+    ]
+  }
+}

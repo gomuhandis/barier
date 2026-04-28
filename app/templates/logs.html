@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Loglar — PDP Parking{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📝 Loglar</h1>
+        <div class="subtitle">Kirish/chiqish tarixi va shlakbaum harakatlari</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>🔍 Filter</h3>
+    <form method="get" action="/logs">
+        <div class="form-row">
+            <div><label>Raqam</label><input name="plate" value="{{ filters.plate }}" placeholder="01A123"></div>
+            <div><label>Yo‘nalish</label>
+                <select name="direction">
+                    <option value="">Hammasi</option>
+                    <option value="entry" {% if filters.direction == 'entry' %}selected{% endif %}>Kirish</option>
+                    <option value="exit"  {% if filters.direction == 'exit'  %}selected{% endif %}>Chiqish</option>
+                </select>
+            </div>
+            <div><label>Kamera</label><input name="camera" value="{{ filters.camera }}" placeholder="Entry / Exit"></div>
+            <div><label>Sana</label><input type="date" name="date" value="{{ filters.date }}"></div>
+        </div>
+        <div class="flex">
+            <button class="btn" type="submit">🔍 Filter</button>
+            <a class="btn ok" href="/api/export/entries.xlsx?plate={{ filters.plate }}&direction={{ filters.direction }}&camera={{ filters.camera }}&date={{ filters.date }}">⬇ Kirish/Chiqish Excel</a>
+            <a class="btn warn" href="/api/export/barrier.xlsx?camera={{ filters.camera }}&date={{ filters.date }}">⬇ Shlakbaum Excel</a>
+            <a class="btn ghost" href="/logs">Tozalash</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>🚗 Kirish / Chiqish <span class="muted" style="font-weight:400; font-size:13px;">({{ entries|length }} ta)</span></h3>
+    <table>
+        <thead><tr><th>Vaqt</th><th>Raqam</th><th>Yo‘nalish</th><th>Kamera</th><th>Aniqlik</th><th>Ruxsat</th></tr></thead>
+        <tbody>
+        {% for r in entries %}
+            <tr>
+                <td>{{ r.event_time | localtime }}</td>
+                <td><b style="font-family:monospace;">{{ r.plate_number }}</b></td>
+                <td>
+                    {% if r.direction.value == 'entry' %}<span class="badge in">↘ Kirdi</span>
+                    {% else %}<span class="badge out">↗ Chiqdi</span>{% endif %}
+                </td>
+                <td>{{ r.camera_name }} <span class="muted">({{ r.camera_host }})</span></td>
+                <td>{{ r.confidence or '—' }}%</td>
+                <td>
+                    {% if r.is_allowed %}<span class="badge ok">✓ Ha</span>{% else %}<span class="badge bad">✗ Yo‘q</span>{% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="muted" style="text-align:center; padding:30px;">Loglar yo‘q.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3>🚧 Shlakbaum harakatlari <span class="muted" style="font-weight:400; font-size:13px;">(so‘nggi 100)</span></h3>
+    <table>
+        <thead><tr><th>Vaqt</th><th>Kamera</th><th>Amal</th><th>Kim</th><th>Tafsilot</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for b in barrier %}
+            <tr>
+                <td>{{ b.created_at | localtime }}</td>
+                <td>{{ b.camera_name }}</td>
+                <td>
+                    {% if b.action.value == 'open' %}<span class="badge ok">🟢 open</span>
+                    {% elif b.action.value == 'close' %}<span class="badge warn">🔴 close</span>
+                    {% else %}<span class="badge muted">{{ b.action.value }}</span>{% endif %}
+                </td>
+                <td>
+                    {% if b.actor.value == 'admin' %}<span class="badge in">👤 admin</span>
+                    {% elif b.actor.value == 'telegram' %}<span class="badge in">📱 telegram</span>
+                    {% elif b.actor.value == 'auto_anpr' %}<span class="badge in">📷 anpr</span>
+                    {% else %}<span class="badge muted">🔄 loop</span>{% endif %}
+                </td>
+                <td class="muted">{{ b.actor_detail or '' }}</td>
+                <td>
+                    {% if b.status_code == 200 %}<span class="badge ok">OK</span>
+                    {% else %}<span class="badge bad">{{ b.status_code }}</span>{% endif %}
+                    <span class="muted">{{ b.status_message or '' }}</span>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="muted" style="text-align:center; padding:30px;">Yo‘q.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

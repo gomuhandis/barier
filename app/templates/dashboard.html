@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PDP Parking{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Dashboard</h1>
+        <div class="subtitle">PDP University Parking — {{ today.strftime('%Y-%m-%d') }} kunlik holat (GMT+5)</div>
+    </div>
+</div>
+
+<h2 style="font-size:15px; color:var(--pdp-muted); text-transform:uppercase; letter-spacing:1px; margin: 0 0 12px;">📅 Bugungi statistika</h2>
+<div class="stats">
+    <div class="stat-card blue">
+        <div class="stat-label">Bugun jami harakat</div>
+        <div class="stat-value">{{ stats.today_total }}</div>
+        <div class="stat-meta">↘ {{ stats.today_entries }} kirish · ↗ {{ stats.today_exits }} chiqish</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">Bugun kirgan</div>
+        <div class="stat-value">{{ stats.today_entries }}</div>
+        <div class="stat-meta">🚗 ↘ Kirish hodisalari</div>
+    </div>
+    <div class="stat-card amber">
+        <div class="stat-label">Bugun chiqgan</div>
+        <div class="stat-value">{{ stats.today_exits }}</div>
+        <div class="stat-meta">🚙 ↗ Chiqish hodisalari</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-label">Bugun ruxsat berilgan</div>
+        <div class="stat-value">{{ stats.today_allowed }}</div>
+        <div class="stat-meta">✅ Allowlist mashinalar</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Bugun rad etilgan</div>
+        <div class="stat-value">{{ stats.today_denied }}</div>
+        <div class="stat-meta">⛔ Bloklangan / noma’lum</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-label">Bugun shlakbaum ochildi</div>
+        <div class="stat-value">{{ stats.today_opens }}</div>
+        <div class="stat-meta">🟢 Open buyruqlari</div>
+    </div>
+    <div class="stat-card amber">
+        <div class="stat-label">Bugun shlakbaum yopildi</div>
+        <div class="stat-value">{{ stats.today_closes }}</div>
+        <div class="stat-meta">🔴 Close buyruqlari</div>
+    </div>
+</div>
+
+<h2 style="font-size:15px; color:var(--pdp-muted); text-transform:uppercase; letter-spacing:1px; margin: 22px 0 12px;">📊 Umumiy holat</h2>
+<div class="stats">
+    <div class="stat-card">
+        <div class="stat-label">Ro‘yxatdagi raqamlar</div>
+        <div class="stat-value">{{ stats.plates_total }}</div>
+        <div class="stat-meta">✓ {{ stats.plates_allowed }} ruxsat · ✗ {{ stats.plates_blocked }} blok</div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-label">Telegram foydalanuvchilar</div>
+        <div class="stat-value">{{ stats.users_total }}</div>
+        <div class="stat-meta">🔗 {{ stats.users_linked }} ulangan</div>
+    </div>
+    <div class="stat-card amber">
+        <div class="stat-label">Kameralar</div>
+        <div class="stat-value">2</div>
+        <div class="stat-meta">📷 Kirish + Chiqish</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="flex-between">
+        <div>
+            <h2 style="margin:0;">🚧 Shlakbaumni boshqarish</h2>
+            <div class="muted" style="margin-top:4px;">Kamera bo‘yicha ochish yoki yopish buyrug‘ini yuboring</div>
+        </div>
+        <div class="flex">
+            <button class="btn ok" onclick="cmd('entry','open')">🟢 Kirish — Ochish</button>
+            <button class="btn warn" onclick="cmd('entry','close')">🔴 Kirish — Yopish</button>
+            <button class="btn ok" onclick="cmd('exit','open')">🟢 Chiqish — Ochish</button>
+            <button class="btn warn" onclick="cmd('exit','close')">🔴 Chiqish — Yopish</button>
+        </div>
+    </div>
+    <div id="cmd-result" class="muted" style="margin-top:14px;"></div>
+</div>
+
+<div class="card">
+    <h2>⏱️ So‘nggi kirish/chiqish</h2>
+    <table>
+        <thead><tr><th>Vaqt</th><th>Raqam</th><th>Yo‘nalish</th><th>Kamera</th><th>Ruxsat</th></tr></thead>
+        <tbody>
+        {% for r in recent_entries %}
+            <tr>
+                <td>{{ r.event_time | localtime }}</td>
+                <td><b>{{ r.plate_number }}</b></td>
+                <td>
+                    {% if r.direction.value == 'entry' %}<span class="badge in">↘ Kirdi</span>
+                    {% else %}<span class="badge out">↗ Chiqdi</span>{% endif %}
+                </td>
+                <td>{{ r.camera_name }}</td>
+                <td>
+                    {% if r.is_allowed %}<span class="badge ok">✓ Ha</span>{% else %}<span class="badge bad">✗ Yo‘q</span>{% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="muted" style="text-align:center; padding:30px;">Hodisalar yo‘q.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function cmd(role, mode) {
+    const el = document.getElementById('cmd-result');
+    el.textContent = 'Yuborilmoqda...';
+    try {
+        const res = await api('POST', '/api/barrier/command', { role, mode });
+        const msg = `${role} ${mode} → ${res.ok ? '✅ OK' : '❌ ERR'} (${res.status_code}) ${res.message}`;
+        el.textContent = msg;
+        toast(msg, res.ok);
+    } catch (e) { el.textContent = 'Xato: ' + e.message; toast('Xato: ' + e.message, false); }
+}
+</script>
+{% endblock %}

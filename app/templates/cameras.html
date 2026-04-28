@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Kameralar — PDP Parking{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📷 Kameralar va shlakbaum</h1>
+        <div class="subtitle">IP va login/parollar <code>.env</code> dan o‘qiladi. Quyidagi tugmalar orqali shlakbaumni qo‘lda boshqaring.</div>
+    </div>
+    <button class="btn ghost" onclick="refreshStatus()">🔄 Statusni yangilash</button>
+</div>
+
+<div class="stats">
+    {% for c in cameras %}
+    <div class="stat-card {% if c.role == 'entry' %}blue{% else %}amber{% endif %}">
+        <div class="stat-label">{% if c.role == 'entry' %}↘ Kirish kamerasi{% else %}↗ Chiqish kamerasi{% endif %}</div>
+        <div class="stat-value" style="font-size:20px; font-weight:700;">{{ c.name }}</div>
+        <div class="stat-meta">{{ c.host }}:{{ c.port }} · channel {{ c.channel }}</div>
+        <div class="status muted" style="margin-top:8px;" data-role="{{ c.role }}">—</div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3>🚧 Qo‘lda boshqarish</h3>
+    <table>
+        <thead><tr><th>Kamera</th><th>Rol</th><th>Host</th><th>Status</th><th style="text-align:right;">Amallar</th></tr></thead>
+        <tbody>
+        {% for c in cameras %}
+            <tr id="cam-{{ c.role }}">
+                <td><b>{{ c.name }}</b></td>
+                <td>
+                    {% if c.role == 'entry' %}<span class="badge in">↘ Kirish</span>
+                    {% else %}<span class="badge out">↗ Chiqish</span>{% endif %}
+                </td>
+                <td><span style="font-family:monospace;">{{ c.host }}:{{ c.port }}</span></td>
+                <td class="status-cell muted">—</td>
+                <td style="text-align:right;">
+                    <button class="btn ok sm" onclick="cmd('{{ c.role }}','open')">🟢 Ochish</button>
+                    <button class="btn warn sm" onclick="cmd('{{ c.role }}','close')">🔴 Yopish</button>
+                    <button class="btn ghost sm" onclick="cmd('{{ c.role }}','lock')">🔒</button>
+                    <button class="btn ghost sm" onclick="cmd('{{ c.role }}','unlock')">🔓</button>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div id="cmd-result" class="muted" style="margin-top:14px;"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function cmd(role, mode) {
+    const el = document.getElementById('cmd-result');
+    el.textContent = 'Yuborilmoqda...';
+    try {
+        const res = await api('POST', '/api/barrier/command', { role, mode });
+        const msg = `${role} ${mode} → ${res.ok ? '✅ OK' : '❌ ERR'} (${res.status_code}) ${res.message}`;
+        el.textContent = msg;
+        toast(msg, res.ok);
+    } catch (e) { el.textContent = 'Xato: ' + e.message; toast(e.message, false); }
+    refreshStatus();
+}
+async function refreshStatus() {
+    try {
+        const data = await api('GET', '/api/barrier/status');
+        for (const role in data) {
+            const row = document.getElementById('cam-' + role);
+            if (!row) continue;
+            const cell = row.querySelector('.status-cell');
+            const d = data[role];
+            let badge = 'muted', label = d.barrier_state || '?';
+            if (d.barrier_state === 'open') { badge = 'ok'; label = '🟢 open'; }
+            else if (d.barrier_state === 'closed') { badge = 'warn'; label = '🔴 closed'; }
+            cell.innerHTML = `<span class="badge ${badge}">${label}</span> <span class="muted" style="margin-left:6px;">${d.message}</span>`;
+            // also update the stat-card
+            document.querySelectorAll('.status[data-role="' + role + '"]').forEach(el => {
+                el.innerHTML = `<span class="badge ${badge}">${label}</span>`;
+            });
+        }
+    } catch (e) { /* ignore */ }
+}
+refreshStatus();
+</script>
+{% endblock %}

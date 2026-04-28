@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="uz">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}PDP University — Parking{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="/static/img/pdp-favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* PDP brand-inspired palette */
+            --pdp-red:       #E30613;   /* primary red */
+            --pdp-red-dark:  #B8050F;
+            --pdp-red-soft:  rgba(227,6,19,0.12);
+            --pdp-black:     #0F1115;
+            --pdp-ink:       #15181F;
+            --pdp-slate:     #1E222B;
+            --pdp-slate-2:   #272C36;
+            --pdp-border:    #2F353F;
+            --pdp-text:      #EEF0F3;
+            --pdp-muted:     #9AA2B1;
+            --pdp-ok:        #10B981;
+            --pdp-warn:      #F59E0B;
+            --pdp-bad:       #EF4444;
+            --pdp-blue:      #2563EB;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            background: var(--pdp-black);
+            color: var(--pdp-text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ---------- Sidebar ---------- */
+        .sidebar {
+            width: 260px;
+            min-width: 260px;
+            background: linear-gradient(180deg, #0A0C10 0%, #12151B 100%);
+            border-right: 1px solid var(--pdp-border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 22px 24px;
+            border-bottom: 1px solid var(--pdp-border);
+            margin-bottom: 18px;
+        }
+        .brand img {
+            height: 42px;
+            width: auto;
+            filter: drop-shadow(0 4px 10px rgba(227,6,19,0.35));
+        }
+        .brand-name { font-weight: 800; font-size: 16px; letter-spacing: 0.2px; }
+        .brand-sub  { color: var(--pdp-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; }
+
+        .nav { flex: 1; padding: 0 12px; }
+        .nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 14px;
+            color: var(--pdp-muted);
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+            transition: all 0.15s;
+        }
+        .nav a:hover { background: var(--pdp-slate); color: var(--pdp-text); }
+        .nav a.active {
+            background: linear-gradient(135deg, var(--pdp-red) 0%, var(--pdp-red-dark) 100%);
+            color: white;
+            box-shadow: 0 6px 18px -6px rgba(227,6,19,0.65);
+        }
+        .nav .icon { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; }
+
+        .sidebar-footer {
+            padding: 16px 20px 0;
+            border-top: 1px solid var(--pdp-border);
+            margin-top: 18px;
+        }
+        .sidebar-footer form { margin: 0; }
+        .sidebar-footer .btn { width: 100%; justify-content: center; display: flex; }
+
+        /* ---------- Main content ---------- */
+        .main { flex: 1; padding: 32px 40px; overflow-x: auto; max-width: 100%; }
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 26px;
+        }
+        .page-header h1 { font-size: 26px; font-weight: 700; margin: 0; }
+        .page-header .subtitle { color: var(--pdp-muted); font-size: 14px; margin-top: 4px; }
+
+        /* ---------- Cards ---------- */
+        .card {
+            background: var(--pdp-ink);
+            border: 1px solid var(--pdp-border);
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .card h2, .card h3 { margin: 0 0 14px; font-weight: 600; }
+        .card h2 { font-size: 18px; }
+        .card h3 { font-size: 15px; }
+
+        /* ---------- Stats ---------- */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 22px; }
+        .stat-card {
+            background: var(--pdp-ink);
+            border: 1px solid var(--pdp-border);
+            border-radius: 14px;
+            padding: 20px 22px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--pdp-red) 0%, var(--pdp-red-dark) 100%);
+        }
+        .stat-card.blue::before { background: linear-gradient(90deg, #2563EB 0%, #1E40AF 100%); }
+        .stat-card.green::before { background: linear-gradient(90deg, #10B981 0%, #047857 100%); }
+        .stat-card.amber::before { background: linear-gradient(90deg, #F59E0B 0%, #B45309 100%); }
+        .stat-label { color: var(--pdp-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 32px; font-weight: 800; margin: 6px 0 0; color: var(--pdp-text); }
+        .stat-meta { font-size: 12px; color: var(--pdp-muted); margin-top: 4px; }
+
+        /* ---------- Tables ---------- */
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead tr { background: var(--pdp-slate); }
+        th { text-align: left; padding: 12px 14px; color: var(--pdp-muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 13px 14px; border-top: 1px solid var(--pdp-border); }
+        tbody tr:hover { background: var(--pdp-slate); }
+
+        /* ---------- Forms ---------- */
+        input, select, textarea {
+            background: var(--pdp-slate);
+            border: 1px solid var(--pdp-border);
+            color: var(--pdp-text);
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            width: 100%;
+            transition: border-color 0.15s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--pdp-red);
+            box-shadow: 0 0 0 3px var(--pdp-red-soft);
+        }
+        label { display: block; font-size: 12px; color: var(--pdp-muted); margin-bottom: 5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 14px; }
+
+        /* ---------- Buttons ---------- */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, var(--pdp-red) 0%, var(--pdp-red-dark) 100%);
+            color: white; border: none;
+            padding: 10px 18px; border-radius: 8px;
+            cursor: pointer; font-weight: 600; font-size: 14px;
+            text-decoration: none;
+            box-shadow: 0 4px 12px -3px rgba(227,6,19,0.5);
+            transition: all 0.15s;
+        }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px -3px rgba(227,6,19,0.6); }
+        .btn:active { transform: translateY(0); }
+        .btn.ok { background: linear-gradient(135deg, #10B981 0%, #047857 100%); box-shadow: 0 4px 12px -3px rgba(16,185,129,0.5); }
+        .btn.warn { background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%); box-shadow: 0 4px 12px -3px rgba(245,158,11,0.5); }
+        .btn.danger { background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%); box-shadow: 0 4px 12px -3px rgba(239,68,68,0.5); }
+        .btn.ghost { background: transparent; border: 1px solid var(--pdp-border); color: var(--pdp-text); box-shadow: none; }
+        .btn.ghost:hover { background: var(--pdp-slate); }
+        .btn.sm { padding: 6px 12px; font-size: 12px; }
+
+        /* ---------- Badges ---------- */
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px; border-radius: 999px;
+            font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.4px;
+        }
+        .badge.ok   { background: rgba(16,185,129,0.15); color: #34D399; }
+        .badge.bad  { background: rgba(239,68,68,0.15); color: #F87171; }
+        .badge.in   { background: rgba(37,99,235,0.15); color: #60A5FA; }
+        .badge.out  { background: rgba(245,158,11,0.15); color: #FBBF24; }
+        .badge.warn { background: rgba(245,158,11,0.15); color: #FBBF24; }
+        .badge.muted { background: var(--pdp-slate-2); color: var(--pdp-muted); }
+
+        /* ---------- Misc ---------- */
+        .muted { color: var(--pdp-muted); font-size: 13px; }
+        .flex { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .flex-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        form.inline { display: inline; }
+        code { background: var(--pdp-slate); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+
+        /* ---------- Login page ---------- */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                radial-gradient(1200px 500px at 70% -10%, rgba(227,6,19,0.18), transparent 60%),
+                radial-gradient(800px 500px at 10% 100%, rgba(37,99,235,0.12), transparent 60%),
+                var(--pdp-black);
+        }
+        .login-card {
+            background: var(--pdp-ink);
+            border: 1px solid var(--pdp-border);
+            border-radius: 18px;
+            padding: 38px 36px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px -15px rgba(0,0,0,0.6);
+        }
+        .login-logo { text-align: center; margin-bottom: 24px; }
+        .login-logo img { height: 64px; width: auto; margin-bottom: 12px; }
+        .login-title { text-align: center; font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+        .login-sub { text-align: center; color: var(--pdp-muted); font-size: 13px; margin-bottom: 26px; }
+        .login-error {
+            background: rgba(239,68,68,0.12);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: #FCA5A5;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; min-width: 0; padding: 16px; flex-direction: row; align-items: center; overflow-x: auto; }
+            .brand { padding: 0 16px 0 0; border-right: 1px solid var(--pdp-border); border-bottom: none; margin: 0; }
+            .nav { display: flex; flex: 1; padding: 0 12px; gap: 4px; }
+            .nav a { margin-bottom: 0; padding: 8px 12px; font-size: 13px; }
+            .sidebar-footer { border-top: 0; padding: 0; margin: 0; margin-left: auto; }
+            .main { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+{% if request.state.user %}
+<aside class="sidebar">
+    <div class="brand">
+        <img src="/static/img/pdp-logo.png" alt="PDP University">
+        <div>
+            <div class="brand-name">PDP University</div>
+            <div class="brand-sub">Parking System</div>
+        </div>
+    </div>
+    <nav class="nav">
+        <a href="/" class="{% if request.url.path == '/' %}active{% endif %}"><span class="icon">📊</span> Dashboard</a>
+        <a href="/plates" class="{% if '/plates' in request.url.path %}active{% endif %}"><span class="icon">🚗</span> Raqamlar</a>
+        <a href="/users" class="{% if '/users' in request.url.path %}active{% endif %}"><span class="icon">👤</span> Foydalanuvchilar</a>
+        <a href="/links" class="{% if '/links' in request.url.path %}active{% endif %}"><span class="icon">🔗</span> Bog‘lanishlar</a>
+        <a href="/logs" class="{% if '/logs' in request.url.path %}active{% endif %}"><span class="icon">📝</span> Loglar</a>
+        <a href="/cameras" class="{% if '/cameras' in request.url.path %}active{% endif %}"><span class="icon">📷</span> Kameralar</a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="muted" style="margin-bottom:8px; font-size:12px;">
+            👋 <b>{{ request.state.user }}</b>
+        </div>
+        <form method="post" action="/logout">
+            <button class="btn ghost" type="submit">🚪 Chiqish</button>
+        </form>
+    </div>
+</aside>
+<main class="main">
+    {% block content %}{% endblock %}
+</main>
+{% else %}
+    {% block login %}{% endblock %}
+{% endif %}
+<script>
+async function api(method, url, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    const resp = await fetch(url, opts);
+    if (resp.status === 204) return null;
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.detail || resp.statusText);
+    return data;
+}
+function reload() { window.location.reload(); }
+function toast(msg, ok = true) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;
+        padding:12px 18px;border-radius:10px;font-weight:600;font-size:14px;
+        color:white;box-shadow:0 10px 30px -5px rgba(0,0,0,0.6);
+        background:${ok ? 'linear-gradient(135deg,#10B981,#047857)' : 'linear-gradient(135deg,#EF4444,#B91C1C)'};`;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

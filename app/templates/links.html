@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Bog‘lanishlar — PDP Parking{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🔗 Raqam ↔ Telefon bog‘lanishlari</h1>
+        <div class="subtitle">Bog‘langan foydalanuvchilar, mashina kirganda/chiqqanida Telegram xabari oladi</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>➕ Yangi bog‘lash</h3>
+    <p class="muted" style="margin-top:0;">
+        Yozishni boshlang — mos keladigan raqamlar va foydalanuvchilar avtomatik chiqadi.
+    </p>
+    <form onsubmit="addLink(event)">
+        <div class="form-row">
+            <div>
+                <label>Mashina raqami</label>
+                <input
+                    id="l_plate"
+                    list="plates-list"
+                    placeholder="01A123BC yoki egasi..."
+                    autocomplete="off"
+                    required>
+                <datalist id="plates-list">
+                {% for p in plates %}
+                    <option value="{{ p.plate_number }}{% if p.owner_name %} — {{ p.owner_name }}{% endif %}"></option>
+                {% endfor %}
+                </datalist>
+            </div>
+            <div>
+                <label>Telegram foydalanuvchi</label>
+                <input
+                    id="l_user"
+                    list="users-list"
+                    placeholder="+998901234567 yoki ism..."
+                    autocomplete="off"
+                    required>
+                <datalist id="users-list">
+                {% for u in users %}
+                    <option value="{{ u.phone_number }}{% if u.full_name %} — {{ u.full_name }}{% endif %}"></option>
+                {% endfor %}
+                </datalist>
+            </div>
+        </div>
+        <button class="btn" type="submit">🔗 Bog‘lash</button>
+        <span id="add-status" class="muted" style="margin-left:12px;"></span>
+    </form>
+</div>
+
+<div class="card">
+    <h3>🔍 Qidiruv va filtr <span class="muted" style="font-weight:400; font-size:13px;">(jami {{ links|length }} ta — <span id="links-shown">{{ links|length }}</span> ta ko‘rsatilmoqda)</span></h3>
+    <div class="form-row">
+        <div>
+            <label>Umumiy qidiruv</label>
+            <input id="lf-q" placeholder="Raqam, telefon, ism..." oninput="filterLinks()">
+        </div>
+        <div>
+            <label>Mashina raqami</label>
+            <input id="lf-plate" list="plates-filter-list" placeholder="01A123BC" oninput="filterLinks()">
+            <datalist id="plates-filter-list">
+                {% for p in plates %}<option value="{{ p.plate_number }}"></option>{% endfor %}
+            </datalist>
+        </div>
+        <div>
+            <label>Telefon / foydalanuvchi</label>
+            <input id="lf-phone" list="users-filter-list" placeholder="+998..." oninput="filterLinks()">
+            <datalist id="users-filter-list">
+                {% for u in users %}<option value="{{ u.phone_number }}"></option>{% endfor %}
+            </datalist>
+        </div>
+    </div>
+    <button class="btn ghost sm" type="button" onclick="resetLinkFilter()">Tozalash</button>
+</div>
+
+<div class="card">
+    <h3>📋 Mavjud bog‘lanishlar</h3>
+    <table id="links-table">
+        <thead><tr><th>#</th><th>Raqam</th><th>Telefon</th><th>Ism</th><th>Qachon</th><th style="text-align:right;">Amal</th></tr></thead>
+        <tbody>
+        {% for l in links %}
+            <tr
+                data-plate="{{ l.plate.plate_number|lower }}"
+                data-phone="{{ l.telegram_user.phone_number|lower }}"
+                data-name="{{ (l.telegram_user.full_name or '')|lower }}"
+            >
+                <td>{{ l.id }}</td>
+                <td><b style="font-family:monospace;">{{ l.plate.plate_number }}</b></td>
+                <td style="font-family:monospace;">{{ l.telegram_user.phone_number }}</td>
+                <td>{{ l.telegram_user.full_name or '—' }}</td>
+                <td class="muted">{{ l.created_at | localtime('%Y-%m-%d %H:%M') }}</td>
+                <td style="text-align:right;"><button class="btn danger sm" onclick="delLink({{ l.id }})">Uzish</button></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6" class="muted" style="text-align:center; padding:30px;">Bog‘lanishlar yo‘q.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// Build lookup maps so the typed datalist value resolves back to a numeric id.
+// Keys are the same string we render as the <option value="...">.
+const PLATES = {
+{% for p in plates %}
+    "{{ p.plate_number }}{% if p.owner_name %} — {{ p.owner_name|replace('"', '\\"') }}{% endif %}": {{ p.id }},
+{% endfor %}
+};
+const USERS = {
+{% for u in users %}
+    "{{ u.phone_number }}{% if u.full_name %} — {{ u.full_name|replace('"', '\\"') }}{% endif %}": {{ u.id }},
+{% endfor %}
+};
+
+function _resolveId(map, raw) {
+    const value = (raw || '').trim();
+    if (!value) return null;
+    if (Object.prototype.hasOwnProperty.call(map, value)) return map[value];
+    // also accept the bare plate_number / phone_number prefix (before ' — ')
+    const head = value.split(' — ')[0].trim();
+    for (const key in map) {
+        if (key === head || key.startsWith(head + ' — ')) return map[key];
+    }
+    return null;
+}
+
+async function addLink(ev) {
+    ev.preventDefault();
+    const status = document.getElementById('add-status');
+    const plate_id = _resolveId(PLATES, document.getElementById('l_plate').value);
+    const telegram_user_id = _resolveId(USERS, document.getElementById('l_user').value);
+    if (!plate_id) { status.textContent = ''; toast('Mashina raqami topilmadi', false); return; }
+    if (!telegram_user_id) { status.textContent = ''; toast('Foydalanuvchi topilmadi', false); return; }
+    status.textContent = 'Bog‘lanmoqda...';
+    try {
+        await api('POST', '/api/links', { plate_id, telegram_user_id });
+        toast('Bog‘landi');
+        reload();
+    } catch (e) { status.textContent = ''; toast(e.message, false); }
+}
+
+async function delLink(id) {
+    if (!confirm('Bog‘lanishni uzasizmi?')) return;
+    try { await api('DELETE', '/api/links/' + id); toast('Uzildi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+
+function filterLinks() {
+    const q     = (document.getElementById('lf-q').value     || '').toLowerCase().trim();
+    const plate = (document.getElementById('lf-plate').value || '').toLowerCase().trim();
+    const phone = (document.getElementById('lf-phone').value || '').toLowerCase().trim();
+    let shown = 0;
+    document.querySelectorAll('#links-table tbody tr[data-plate]').forEach(row => {
+        const haystack = `${row.dataset.plate} ${row.dataset.phone} ${row.dataset.name}`;
+        if (q     && !haystack.includes(q))                 { row.style.display = 'none'; return; }
+        if (plate && !row.dataset.plate.includes(plate))    { row.style.display = 'none'; return; }
+        if (phone && !row.dataset.phone.includes(phone) && !row.dataset.name.includes(phone)) {
+            row.style.display = 'none'; return;
+        }
+        row.style.display = '';
+        shown++;
+    });
+    const counter = document.getElementById('links-shown');
+    if (counter) counter.textContent = shown;
+}
+function resetLinkFilter() {
+    ['lf-q', 'lf-plate', 'lf-phone'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    filterLinks();
+}
+</script>
+{% endblock %}

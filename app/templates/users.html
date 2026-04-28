@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Foydalanuvchilar — PDP Parking{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>👤 Telegram foydalanuvchilar</h1>
+        <div class="subtitle">Botga ulangan va shlakbaumni boshqarishga ruxsat etilgan telefonlar</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>➕ Yangi foydalanuvchi qo‘shish</h3>
+    <div class="muted" style="margin-bottom:12px;">
+        Telefon <code>+998XXXXXXXXX</code> formatida bo‘lsin. Foydalanuvchi botga kirib kontaktini yuborgach, chat_id avtomatik bog‘lanadi.
+    </div>
+    <form onsubmit="addUser(event)">
+        <div class="form-row">
+            <div><label>Telefon</label><input id="u_phone" placeholder="+998901234567" required></div>
+            <div><label>Ism</label><input id="u_name" placeholder="Ism Familiya"></div>
+            <div><label>Faol</label>
+                <select id="u_active"><option value="true">Ha</option><option value="false">Yo‘q</option></select>
+            </div>
+            <div><label>Shlakbaumni boshqarsin</label>
+                <select id="u_ctrl"><option value="true">Ha</option><option value="false">Yo‘q</option></select>
+            </div>
+            <div><label>O‘z eventlarini ko‘rsin</label>
+                <select id="u_view"><option value="true">Ha</option><option value="false">Yo‘q</option></select>
+            </div>
+            <div><label>Hamma loglarni oladi</label>
+                <select id="u_all"><option value="false">Yo‘q</option><option value="true">Ha — barcha hodisalar</option></select>
+            </div>
+        </div>
+        <button class="btn" type="submit">Qo‘shish</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>🔍 Qidiruv va filtr <span class="muted" style="font-weight:400; font-size:13px;">(jami {{ users|length }} ta — <span id="users-shown">{{ users|length }}</span> ta ko‘rsatilmoqda)</span></h3>
+    <div class="form-row">
+        <div>
+            <label>Qidiruv</label>
+            <input id="u-q" placeholder="Telefon, ism, @username..." oninput="applyUserFilter()">
+        </div>
+        <div>
+            <label>Faollik</label>
+            <select id="u-f-active" onchange="applyUserFilter()">
+                <option value="">Hammasi</option>
+                <option value="1">Faol</option>
+                <option value="0">Bloklangan</option>
+            </select>
+        </div>
+        <div>
+            <label>Telegram ulanish</label>
+            <select id="u-f-linked" onchange="applyUserFilter()">
+                <option value="">Hammasi</option>
+                <option value="1">Ulangan</option>
+                <option value="0">Ulanmagan</option>
+            </select>
+        </div>
+        <div>
+            <label>Shlakbaum boshqarish</label>
+            <select id="u-f-ctrl" onchange="applyUserFilter()">
+                <option value="">Hammasi</option>
+                <option value="1">Ha</option>
+                <option value="0">Yo‘q</option>
+            </select>
+        </div>
+        <div>
+            <label>O‘z eventlari</label>
+            <select id="u-f-view" onchange="applyUserFilter()">
+                <option value="">Hammasi</option>
+                <option value="1">Ha</option>
+                <option value="0">Yo‘q</option>
+            </select>
+        </div>
+        <div>
+            <label>Hamma loglar</label>
+            <select id="u-f-bc" onchange="applyUserFilter()">
+                <option value="">Hammasi</option>
+                <option value="1">Ha</option>
+                <option value="0">Yo‘q</option>
+            </select>
+        </div>
+    </div>
+    <button class="btn ghost sm" type="button" onclick="resetUserFilter()">Tozalash</button>
+</div>
+
+<div class="card">
+    <table id="users-table">
+        <thead><tr><th>#</th><th>Telefon</th><th>Ism</th><th>Telegram</th><th>Faol</th><th>Boshqarish</th><th>O‘z eventlari</th><th>Hamma loglar</th><th style="text-align:right;">Amallar</th></tr></thead>
+        <tbody>
+        {% for u in users %}
+            <tr
+                data-active="{{ '1' if u.is_active else '0' }}"
+                data-linked="{{ '1' if u.telegram_chat_id else '0' }}"
+                data-ctrl="{{ '1' if u.can_control_barrier else '0' }}"
+                data-view="{{ '1' if u.can_view_own_events else '0' }}"
+                data-bc="{{ '1' if u.receive_all_events else '0' }}"
+                data-search="{{ (u.phone_number ~ ' ' ~ (u.full_name or '') ~ ' ' ~ (u.telegram_username or ''))|lower }}"
+            >
+                <td>{{ u.id }}</td>
+                <td><b style="font-family:monospace;">{{ u.phone_number }}</b></td>
+                <td>{{ u.full_name or '—' }}</td>
+                <td>
+                    {% if u.telegram_chat_id %}
+                        {% if u.telegram_username %}<span class="badge in">@{{ u.telegram_username }}</span>{% else %}<span class="badge in">chat {{ u.telegram_chat_id }}</span>{% endif %}
+                    {% else %}<span class="badge muted">ulanmagan</span>{% endif %}
+                </td>
+                <td>
+                    {% if u.is_active %}<span class="badge ok">✓ Faol</span>{% else %}<span class="badge bad">✗ Blok</span>{% endif %}
+                </td>
+                <td>
+                    <button class="btn ghost sm" onclick="toggleCtrl({{ u.id }}, {{ 'false' if u.can_control_barrier else 'true' }})">
+                        {% if u.can_control_barrier %}<span class="badge ok">✓ Ha</span>{% else %}<span class="badge bad">✗ Yo‘q</span>{% endif %}
+                    </button>
+                </td>
+                <td>
+                    <button class="btn ghost sm" onclick="toggleViewEvents({{ u.id }}, {{ 'false' if u.can_view_own_events else 'true' }})">
+                        {% if u.can_view_own_events %}<span class="badge ok">✓ Ha</span>{% else %}<span class="badge bad">✗ Yo‘q</span>{% endif %}
+                    </button>
+                </td>
+                <td>
+                    <button class="btn ghost sm" onclick="toggleBroadcast({{ u.id }}, {{ 'false' if u.receive_all_events else 'true' }})">
+                        {% if u.receive_all_events %}<span class="badge in">📢 Ha</span>{% else %}<span class="badge muted">Yo‘q</span>{% endif %}
+                    </button>
+                </td>
+                <td style="text-align:right;">
+                    <button class="btn ghost sm" onclick="toggleActive({{ u.id }}, {{ 'false' if u.is_active else 'true' }})">
+                        {% if u.is_active %}Bloklash{% else %}Yoqish{% endif %}
+                    </button>
+                    <button class="btn danger sm" onclick="delUser({{ u.id }})">O‘chirish</button>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="9" class="muted" style="text-align:center; padding:30px;">Foydalanuvchilar yo‘q.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function addUser(ev) {
+    ev.preventDefault();
+    try {
+        await api('POST', '/api/phones', {
+            phone_number: document.getElementById('u_phone').value,
+            full_name: document.getElementById('u_name').value || null,
+            is_active: document.getElementById('u_active').value === 'true',
+            can_control_barrier: document.getElementById('u_ctrl').value === 'true',
+            can_view_own_events: document.getElementById('u_view').value === 'true',
+            receive_all_events: document.getElementById('u_all').value === 'true',
+        });
+        toast('Qo‘shildi');
+        reload();
+    } catch (e) { toast(e.message, false); }
+}
+async function delUser(id) {
+    if (!confirm('O‘chirishni tasdiqlaysizmi?')) return;
+    try { await api('DELETE', '/api/phones/' + id); toast('O‘chirildi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+async function toggleActive(id, v) {
+    try { await api('PUT', '/api/phones/' + id, { is_active: v }); toast('Yangilandi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+async function toggleCtrl(id, v) {
+    try { await api('PUT', '/api/phones/' + id, { can_control_barrier: v }); toast(v ? 'Boshqaruv yoqildi' : 'Boshqaruv o‘chirildi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+async function toggleViewEvents(id, v) {
+    try { await api('PUT', '/api/phones/' + id, { can_view_own_events: v }); toast(v ? 'O‘z eventlari ko‘rsatiladi' : 'O‘z eventlari yashirildi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+async function toggleBroadcast(id, v) {
+    try { await api('PUT', '/api/phones/' + id, { receive_all_events: v }); toast(v ? 'Endi barcha loglarni oladi' : 'Loglar o‘chirildi'); reload(); }
+    catch (e) { toast(e.message, false); }
+}
+
+function applyUserFilter() {
+    const q = (document.getElementById('u-q').value || '').toLowerCase().trim();
+    const fActive = document.getElementById('u-f-active').value;
+    const fLinked = document.getElementById('u-f-linked').value;
+    const fCtrl   = document.getElementById('u-f-ctrl').value;
+    const fView   = document.getElementById('u-f-view').value;
+    const fBc     = document.getElementById('u-f-bc').value;
+    let shown = 0;
+    document.querySelectorAll('#users-table tbody tr[data-search]').forEach(row => {
+        if (q && !row.dataset.search.includes(q)) { row.style.display = 'none'; return; }
+        if (fActive && row.dataset.active !== fActive) { row.style.display = 'none'; return; }
+        if (fLinked && row.dataset.linked !== fLinked) { row.style.display = 'none'; return; }
+        if (fCtrl   && row.dataset.ctrl   !== fCtrl)   { row.style.display = 'none'; return; }
+        if (fView   && row.dataset.view   !== fView)   { row.style.display = 'none'; return; }
+        if (fBc     && row.dataset.bc     !== fBc)     { row.style.display = 'none'; return; }
+        row.style.display = '';
+        shown++;
+    });
+    const counter = document.getElementById('users-shown');
+    if (counter) counter.textContent = shown;
+}
+function resetUserFilter() {
+    document.getElementById('u-q').value = '';
+    ['u-f-active', 'u-f-linked', 'u-f-ctrl', 'u-f-view', 'u-f-bc'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    applyUserFilter();
+}
+</script>
+{% endblock %}
